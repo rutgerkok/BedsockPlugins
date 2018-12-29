@@ -1,0 +1,13 @@
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# Maven
+target/
+dependency-reduced-pom.xml
+
+# Project
+wrapper_plugins/
+server.log
