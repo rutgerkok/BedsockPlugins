@@ -3,10 +3,10 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>nl.rutgerkok</groupId>
-	<artifactId>bedsock-simplelogger</artifactId>
+	<artifactId>bedsock-simplebackup</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
-	<name>SimpleLogger</name>
-	<description>Simple logger plugin for the Bedsock server wrapper.</description>
+	<name>SimpleBackup</name>
+	<description>Simple backup plugin for the Bedsock server wrapper.</description>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -21,8 +21,14 @@
 			<version>0.2-SNAPSHOT</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.enterprisedt</groupId>
+			<artifactId>edtFTPj</artifactId>
+			<version>1.5.3</version>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
-	
+
 	<build>
 		<!-- Define filtering for the inclusion of plugin.json, so we can utilize 
 			the pom.xml version in it -->
@@ -37,6 +43,34 @@
 			</resource>
 		</resources>
 
+		<!-- Maven Shade plugin -->
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>2.3</version>
+				<configuration>
+					<filters>
+						<filter>
+							<artifact>*:*</artifact>
+							<excludes>
+								<exclude>META-INF/*.SF</exclude>
+								<exclude>META-INF/*.DSA</exclude>
+								<exclude>META-INF/*.RSA</exclude>
+							</excludes>
+						</filter>
+					</filters>
+				</configuration>
+				<executions>
+					<!-- Run shade goal on package phase -->
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>

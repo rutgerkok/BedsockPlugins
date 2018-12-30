@@ -1,0 +1,5 @@
+{
+    "name": "${project.name}",
+    "version": "${project.version}",
+    "main": "nl.rutgerkok.bedsockplugin.simplebackup.Main"
+}
