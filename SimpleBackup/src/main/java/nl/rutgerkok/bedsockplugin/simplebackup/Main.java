@@ -127,10 +127,9 @@ public class Main implements Plugin {
                 ftp.login(loginInfo.user, loginInfo.pass);
                 ftp.chdir(loginInfo.folder);
                 ftp.put(zipFile.toString(), loginInfo.file);
-
-                Files.delete(zipFile);
             } finally {
                 ftp.quit();
+                Files.delete(zipFile);
             }
         } catch (IOException | FTPException e) {
             throw new RuntimeException("Backup failed", e);
