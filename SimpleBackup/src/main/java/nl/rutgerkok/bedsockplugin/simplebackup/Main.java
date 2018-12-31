@@ -2,11 +2,15 @@ package nl.rutgerkok.bedsockplugin.simplebackup;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import com.enterprisedt.net.ftp.FTPClient;
 import com.enterprisedt.net.ftp.FTPException;
@@ -19,7 +23,6 @@ import nl.rutgerkok.bedsock.command.CommandException;
 import nl.rutgerkok.bedsock.command.CommandSender;
 import nl.rutgerkok.bedsock.command.WrapperCommand;
 import nl.rutgerkok.bedsock.config.ConfigObject;
-import nl.rutgerkok.bedsock.config.InvalidConfigException;
 import nl.rutgerkok.bedsock.config.JsonConfigs;
 import nl.rutgerkok.bedsock.plugin.ActivePlugin;
 import nl.rutgerkok.bedsock.plugin.Plugin;
@@ -100,44 +103,62 @@ public class Main implements Plugin {
 
     }
 
+    private static void transfer(InputStream inputStream, OutputStream outputStream) throws IOException {
+        byte[] buffer = new byte[4096];
+        int len;
+        while ((len = inputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, len);
+        }
+    }
+
     private LoginInfo loginInfo = new LoginInfo();
 
     private void backupFiles(ActiveServer server, List<SendingFile> files) {
         server.getServerLogger().info("Test! Backing up " + files);
-        FTPClient ftp = new FTPClient();
+
         try {
-            ftp.setRemoteHost(loginInfo.host);
-            ftp.connect();
-            ftp.login(loginInfo.user, loginInfo.pass);
-            ftp.chdir(loginInfo.path);
-            for (SendingFile file : files) {
-                Path filePath = server.getFolders().getRootFolder().resolve(file.path);
-                try (InputStream stream = Files.newInputStream(filePath)) {
-                    ftp.put(stream, file.path);
-                }
+            Path zipFile = server.getFolders().getRootFolder().resolve("backup.zip");
+            createZip(server, files, zipFile);
+
+            FTPClient ftp = new FTPClient();
+            try {
+                ftp.setRemoteHost(loginInfo.host);
+                ftp.connect();
+                ftp.login(loginInfo.user, loginInfo.pass);
+                ftp.chdir(loginInfo.folder);
+                ftp.put(zipFile.toString(), loginInfo.file);
+
+                Files.delete(zipFile);
+            } finally {
+                ftp.quit();
             }
         } catch (IOException | FTPException e) {
-            throw new RuntimeException("Backup error", e);
-        } finally {
-            try {
-                ftp.quit();
-            } catch (IOException | FTPException e) {
-                throw new RuntimeException("Backup error", e);
-            }
+            throw new RuntimeException("Backup failed", e);
         }
+    }
 
+    private void createZip(ActiveServer server, List<SendingFile> files, Path zipFile) throws IOException {
+        try (OutputStream outputStream = Files.newOutputStream(zipFile)) {
+            ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream, StandardCharsets.UTF_8);
+            for (SendingFile file : files) {
+                zipOutputStream.putNextEntry(new ZipEntry(file.path));
+
+                Path filePath = server.getFolders().getWorldsFolder().resolve(file.path);
+                try (InputStream stream = Files.newInputStream(filePath)) {
+                    transfer(stream, zipOutputStream);
+                }
+                zipOutputStream.closeEntry();
+            }
+            zipOutputStream.close();
+        }
     }
 
     @Override
     public void onEnable(InactiveServer server, ActivePlugin plugin) {
         server.getCommandRegistry().register("backup", new BackupCommand(plugin));
-        try {
-            ConfigObject config = JsonConfigs.loadForPlugin(server.getFolders(), plugin);
-            this.loginInfo = new LoginInfo(config);
-        } catch (InvalidConfigException e) {
-            plugin.getLogger().error("Failed to read config. " + e.getMessage());
-            this.loginInfo = new LoginInfo();
-        }
+        ConfigObject config = JsonConfigs.loadForPlugin(server.getFolders(), plugin);
+        this.loginInfo = new LoginInfo(config);
+        JsonConfigs.saveForPlugin(server.getFolders(), plugin, config);
     }
 
 }

@@ -1,35 +1,38 @@
 package nl.rutgerkok.bedsockplugin.simplebackup;
 
 import nl.rutgerkok.bedsock.config.ConfigObject;
-import nl.rutgerkok.bedsock.config.InvalidConfigException;
 
 final class LoginInfo {
 
-    private static String fixPath(String string) {
+    private static String[] fixPath(String string) {
         string = string.replace('\\', '/');
         if (string.endsWith("/")) {
             string = string.substring(0, string.length() - 1);
         }
-        return string;
+        int lastSlash = string.lastIndexOf('/');
+        if (lastSlash == -1) {
+            return new String[] { ".", string };
+        }
+        return new String[] { string.substring(0, lastSlash), string.substring(lastSlash + 1) };
     }
 
     public final String host;
     public final String user;
     public final String pass;
-    public final String path;
+    public final String folder;
+    public final String file;
 
-    LoginInfo() {
-        this.host = "ftp.example.com";
-        this.user = "root";
-        this.pass = "minecr4ft";
-        this.path = "backups";
+    public LoginInfo() {
+        this(new ConfigObject());
     }
 
-    LoginInfo(ConfigObject config) throws InvalidConfigException {
-        this.host = config.getString("host");
-        this.user = config.getString("user");
-        this.pass = config.getString("pass");
-        this.path = fixPath(config.getString("path"));
+    LoginInfo(ConfigObject config) {
+        this.host = config.getOrPlaceString("host", "ftp.example.org");
+        this.user = config.getOrPlaceString("user", "root");
+        this.pass = config.getOrPlaceString("pass", "minecr4ft");
+        String[] path = fixPath(config.getOrPlaceString("path", "backups/world.zip"));
+        this.folder = path[0];
+        this.file = path[1];
     }
 
 }
