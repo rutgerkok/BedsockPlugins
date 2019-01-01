@@ -2,7 +2,7 @@ package nl.rutgerkok.bedsockplugin.simplebackup;
 
 import nl.rutgerkok.bedsock.config.ConfigObject;
 
-final class LoginInfo {
+final class UploadSettings {
 
     private static String[] fixPath(String string) {
         string = string.replace('\\', '/');
@@ -23,11 +23,11 @@ final class LoginInfo {
     public final String folder;
     public final String file;
 
-    public LoginInfo() {
+    public UploadSettings() {
         this(new ConfigObject());
     }
 
-    LoginInfo(ConfigObject config) {
+    UploadSettings(ConfigObject config) {
         this.host = config.getOrPlaceString("host", "ftp.example.org");
         this.port = config.getOrPlaceInt("port", 22);
         this.user = config.getOrPlaceString("user", "root");
