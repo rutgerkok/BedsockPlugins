@@ -12,8 +12,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import com.enterprisedt.net.ftp.FTPClient;
-import com.enterprisedt.net.ftp.FTPException;
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpException;
 
 import nl.rutgerkok.bedsock.ActiveServer;
 import nl.rutgerkok.bedsock.InactiveServer;
@@ -116,40 +120,45 @@ public class Main implements Plugin {
     private void backupFiles(ActiveServer server, List<SendingFile> files) {
         server.getServerLogger().info("Test! Backing up " + files);
 
+        Session session = null;
+        Channel channel = null;
         try {
-            Path zipFile = server.getFolders().getRootFolder().resolve("backup.zip");
-            createZip(server, files, zipFile);
-
-            FTPClient ftp = new FTPClient();
-            try {
-                ftp.setRemoteHost(loginInfo.host);
-                ftp.connect();
-                ftp.login(loginInfo.user, loginInfo.pass);
-                ftp.chdir(loginInfo.folder);
-                ftp.put(zipFile.toString(), loginInfo.file);
-            } finally {
-                ftp.quit();
-                Files.delete(zipFile);
+            JSch ssh = new JSch();
+            session = ssh.getSession(loginInfo.user, loginInfo.host, loginInfo.port);
+            session.setPassword(loginInfo.pass);
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.connect();
+            channel = session.openChannel("sftp");
+            channel.connect();
+            ChannelSftp sftp = (ChannelSftp) channel;
+            sftp.cd(loginInfo.folder);
+            try (OutputStream uploadStream = sftp.put(loginInfo.file)) {
+                createZip(server, files, uploadStream);
             }
-        } catch (IOException | FTPException e) {
+        } catch (JSchException | SftpException | IOException e) {
             throw new RuntimeException("Backup failed", e);
+        } finally {
+            if (channel != null) {
+                channel.disconnect();
+            }
+            if (session != null) {
+                session.disconnect();
+            }
         }
     }
 
-    private void createZip(ActiveServer server, List<SendingFile> files, Path zipFile) throws IOException {
-        try (OutputStream outputStream = Files.newOutputStream(zipFile)) {
-            ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream, StandardCharsets.UTF_8);
-            for (SendingFile file : files) {
-                zipOutputStream.putNextEntry(new ZipEntry(file.path));
+    private void createZip(ActiveServer server, List<SendingFile> files, OutputStream outputStream) throws IOException {
+        ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream, StandardCharsets.UTF_8);
+        for (SendingFile file : files) {
+            zipOutputStream.putNextEntry(new ZipEntry(file.path));
 
-                Path filePath = server.getFolders().getWorldsFolder().resolve(file.path);
-                try (InputStream stream = Files.newInputStream(filePath)) {
-                    transfer(stream, zipOutputStream);
-                }
-                zipOutputStream.closeEntry();
+            Path filePath = server.getFolders().getWorldsFolder().resolve(file.path);
+            try (InputStream stream = Files.newInputStream(filePath)) {
+                transfer(stream, zipOutputStream);
             }
-            zipOutputStream.close();
+            zipOutputStream.closeEntry();
         }
+        zipOutputStream.close();
     }
 
     @Override

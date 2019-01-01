@@ -17,6 +17,7 @@ final class LoginInfo {
     }
 
     public final String host;
+    public final int port;
     public final String user;
     public final String pass;
     public final String folder;
@@ -28,6 +29,7 @@ final class LoginInfo {
 
     LoginInfo(ConfigObject config) {
         this.host = config.getOrPlaceString("host", "ftp.example.org");
+        this.port = config.getOrPlaceInt("port", 22);
         this.user = config.getOrPlaceString("user", "root");
         this.pass = config.getOrPlaceString("pass", "minecr4ft");
         String[] path = fixPath(config.getOrPlaceString("path", "backups/world.zip"));
