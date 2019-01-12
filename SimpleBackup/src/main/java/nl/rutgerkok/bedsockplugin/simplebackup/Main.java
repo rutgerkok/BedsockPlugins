@@ -82,7 +82,7 @@ public class Main implements Plugin {
                     getLogger().error("Error starting backup", e);
                 }
             },
-                    TimeSpan.minutes(configuration.automaticBackupHours));
+                    TimeSpan.hours(configuration.automaticBackupHours));
             getLogger().info("Running automated backups every " + configuration.automaticBackupHours + " hours");
         }
 
