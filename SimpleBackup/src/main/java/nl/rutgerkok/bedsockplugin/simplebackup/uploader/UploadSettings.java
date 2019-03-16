@@ -1,8 +1,8 @@
-package nl.rutgerkok.bedsockplugin.simplebackup;
+package nl.rutgerkok.bedsockplugin.simplebackup.uploader;
 
 import nl.rutgerkok.bedsock.config.ConfigObject;
 
-final class UploadSettings {
+public final class UploadSettings {
 
     private static String[] fixPath(String string) {
         string = string.replace('\\', '/');
@@ -22,12 +22,14 @@ final class UploadSettings {
     public final String pass;
     public final String folder;
     public final String file;
+    public final String protocol;
 
     public UploadSettings() {
         this(new ConfigObject());
     }
 
-    UploadSettings(ConfigObject config) {
+    public UploadSettings(ConfigObject config) {
+        this.protocol = config.getOrPlaceString("protocol", "sftp");
         this.host = config.getOrPlaceString("host", "ftp.example.org");
         this.port = config.getOrPlaceInt("port", 22);
         this.user = config.getOrPlaceString("user", "root");

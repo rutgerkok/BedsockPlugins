@@ -1,27 +1,14 @@
 package nl.rutgerkok.bedsockplugin.simplebackup;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
-import com.jcraft.jsch.Channel;
-import com.jcraft.jsch.ChannelSftp;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
-import com.jcraft.jsch.SftpException;
 
 import nl.rutgerkok.bedsock.ActiveServer;
 import nl.rutgerkok.bedsock.InactiveServer;
 import nl.rutgerkok.bedsock.Scheduler;
+import nl.rutgerkok.bedsock.ServerFolders;
 import nl.rutgerkok.bedsock.command.CommandArgs;
 import nl.rutgerkok.bedsock.command.CommandException;
 import nl.rutgerkok.bedsock.command.CommandSender;
@@ -35,6 +22,8 @@ import nl.rutgerkok.bedsock.logger.Logger;
 import nl.rutgerkok.bedsock.plugin.ActivePlugin;
 import nl.rutgerkok.bedsock.plugin.Plugin;
 import nl.rutgerkok.bedsock.util.TimeSpan;
+import nl.rutgerkok.bedsockplugin.simplebackup.uploader.SendingFile;
+import nl.rutgerkok.bedsockplugin.simplebackup.uploader.Uploader;
 
 public class Main implements Plugin {
 
@@ -88,58 +77,15 @@ public class Main implements Plugin {
 
     }
 
-    private static void transfer(InputStream inputStream, OutputStream outputStream) throws IOException {
-        byte[] buffer = new byte[4096];
-        int len;
-        while ((len = inputStream.read(buffer)) != -1) {
-            outputStream.write(buffer, 0, len);
-        }
-    }
-
     private Settings configuration;
 
-    private void backupFiles(ActiveServer server, List<SendingFile> files) {
-        UploadSettings uploadSettings = this.configuration.uploadSettings;
-
-        Session session = null;
-        Channel channel = null;
+    private void backupFiles(ServerFolders folders, List<SendingFile> files) {
+        Uploader uploader = Uploader.fromSettings(this.configuration.uploadSettings);
         try {
-            JSch ssh = new JSch();
-            session = ssh.getSession(uploadSettings.user, uploadSettings.host, uploadSettings.port);
-            session.setPassword(uploadSettings.pass);
-            session.setConfig("StrictHostKeyChecking", "no");
-            session.connect();
-            channel = session.openChannel("sftp");
-            channel.connect();
-            ChannelSftp sftp = (ChannelSftp) channel;
-            sftp.cd(uploadSettings.folder);
-            try (OutputStream uploadStream = sftp.put(uploadSettings.file)) {
-                createZip(server, files, uploadStream);
-            }
-        } catch (JSchException | SftpException | IOException e) {
+            uploader.backupFiles(folders, files);
+        } catch (IOException e) {
             throw new RuntimeException("Backup failed", e);
-        } finally {
-            if (channel != null) {
-                channel.disconnect();
-            }
-            if (session != null) {
-                session.disconnect();
-            }
         }
-    }
-
-    private void createZip(ActiveServer server, List<SendingFile> files, OutputStream outputStream) throws IOException {
-        ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream, StandardCharsets.UTF_8);
-        for (SendingFile file : files) {
-            zipOutputStream.putNextEntry(new ZipEntry(file.path));
-
-            Path filePath = server.getFolders().getWorldsFolder().resolve(file.path);
-            try (InputStream stream = Files.newInputStream(filePath)) {
-                transfer(stream, zipOutputStream);
-            }
-            zipOutputStream.closeEntry();
-        }
-        zipOutputStream.close();
     }
 
     @Override
@@ -176,7 +122,7 @@ public class Main implements Plugin {
                 // Process all files in the future.
                 Scheduler scheduler = server.getScheduler();
                 CompletableFuture
-                        .runAsync(() -> backupFiles(server, files), scheduler.workerThreadExecutor())
+                        .runAsync(() -> backupFiles(server.getFolders(), files), scheduler.workerThreadExecutor())
                         .handleAsync((Void r, Throwable exception) -> {
                             if (exception != null) {
                                 logger.error("Backup failed", exception.getCause());

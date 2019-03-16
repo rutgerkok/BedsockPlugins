@@ -1,4 +1,4 @@
-package nl.rutgerkok.bedsockplugin.simplebackup;
+package nl.rutgerkok.bedsockplugin.simplebackup.uploader;
 
 import java.util.Objects;
 
@@ -6,11 +6,11 @@ import java.util.Objects;
  * A file that needs to be uploaded.
  *
  */
-final class SendingFile {
+public final class SendingFile {
 
-    final String path;
+    public final String path;
+    public final long size;
 
-    final long size;
     public SendingFile(String path, long size) {
         this.path = Objects.requireNonNull(path, "path");
         this.size = size;

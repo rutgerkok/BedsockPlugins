@@ -1,6 +1,7 @@
 package nl.rutgerkok.bedsockplugin.simplebackup;
 
 import nl.rutgerkok.bedsock.config.ConfigObject;
+import nl.rutgerkok.bedsockplugin.simplebackup.uploader.UploadSettings;
 
 final class Settings {
 
